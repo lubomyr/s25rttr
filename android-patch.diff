@@ -1,0 +1,222 @@
+diff --git a/src/Debug.cpp b/src/Debug.cpp
+index e5c9907..c559e07
+--- a/src/Debug.cpp
++++ b/src/Debug.cpp
+@@ -226,8 +226,13 @@ bool DebugInfo::SendStackTrace()
+     LOG.lprintf("Read Frames %d\n", num_frames);
+     */
+ #else
++//FIXME ANDROID error: 'backtrace' was not declared in this scope
++#ifdef ANDROID
++    unsigned num_frames = 0;
++#else
+     unsigned num_frames = backtrace(stacktrace, maxTrace);
+ #endif
++#endif
+ 
+     LOG.lprintf("Will now send %d stack frames\n", num_frames);
+ 
+diff --git a/src/Debug.h b/src/Debug.h
+index 203b6b0..0074939
+--- a/src/Debug.h
++++ b/src/Debug.h
+@@ -28,8 +28,10 @@
+ #   include <windows.h>
+ #   include <dbghelp.h>
+ #else
++#ifndef ANDROID
+ #   include <execinfo.h>
+ #endif
++#endif
+ 
+ class DebugInfo : Socket
+ {
+
+diff --git a/src/DriverWrapper.cpp b/src/DriverWrapper.cpp
+index 918c51d..95bfec5
+--- a/src/DriverWrapper.cpp
++++ b/src/DriverWrapper.cpp
+@@ -87,7 +87,8 @@ bool DriverWrapper::Load(const DriverType dt, std::string& preference)
+     /// Verfügbare Treiber auflisten
+     list<DriverItem> drivers;
+     const std::string DIRECTORY[2] = { "video", "audio" };
+-
++//FIXME ANDROID (0 drivers found)
++#ifndef ANDROID
+     LoadDriverList(dt, drivers);
+ 
+     LOG.lprintf("%u %s drivers found!\n", unsigned(drivers.size()), DIRECTORY[dt].c_str());
+@@ -95,14 +96,21 @@ bool DriverWrapper::Load(const DriverType dt, std::string& preference)
+     // Welche gefunden?
+     if(!drivers.size())
+         return false;
+-
++#endif //ANDROID
+     /// Suche, ob der Treiber dabei ist, den wir wünschen
+     for(list<DriverItem>::iterator it = drivers.begin(); it.valid(); ++it)
+     {
+         if(it->GetName() == preference)
+         {
+             // Dann den gleich nehmen
++#ifdef ANDROID
++	if (dt==0)
++	    dll = LoadLibraryA("/data/data/org.siedler25.sdl/lib/libvideoSDL.so");
++	if (dt==1)
++	    dll = LoadLibraryA("/data/data/org.siedler25.sdl/lib/libaudioSDL.so");
++#else
+             dll = LoadLibraryA(it->GetFile().c_str());
++#endif
+             break;
+         }
+     }
+@@ -110,10 +118,21 @@ bool DriverWrapper::Load(const DriverType dt, std::string& preference)
+     // ersten Treiber laden
+     if(!dll)
+     {
++#ifdef ANDROID
++	if (dt==0) {
++	    dll = LoadLibraryA("/data/data/org.siedler25.sdl/lib/libvideoSDL.so");
++	    preference = "videoSDL";
++	}
++	if (dt==1) {
++	    dll = LoadLibraryA("/data/data/org.siedler25.sdl/lib/libaudioSDL.so");
++	    preference = "audioSDL";
++	}
++#else
+         dll = LoadLibraryA(drivers.begin()->GetFile().c_str());
+ 
+         // Standardwert zuweisen
+         preference = drivers.begin()->GetName();
++#endif
+     }
+ 
+     if(!dll)
+
+diff --git a/src/GameWorldView.cpp b/src/GameWorldView.cpp
+index fa6cac9..b8c8f91
+--- a/src/GameWorldView.cpp
++++ b/src/GameWorldView.cpp
+@@ -44,6 +44,10 @@
+ 
+ #include "glSmartBitmap.h"
+ 
++#ifdef ANDROID
++#include <SDL.h>
++#endif
++
+ GameWorldView::GameWorldView(GameWorldViewer* gwv, unsigned short x, unsigned short y, unsigned short width, unsigned short height) : selx(0), sely(0), show_coordinates(false), show_bq(false), show_names(false), show_productivity(false), xoffset(0), yoffset(0), last_xoffset(0), last_yoffset(0), gwv(gwv), d_what(0), d_player(0), d_active(false), x(x), y(y), width(width), height(height), terrain_list(0), terrain_last_xoffset(0), terrain_last_yoffset(0), terrain_last_global_animation(0), terrain_last_water(0)
+ {
+     CalcFxLx();
+@@ -69,9 +73,14 @@ void GameWorldView::Draw(const unsigned char player, unsigned* water, const bool
+     int shortest_len = 100000;
+     //if(//GUIResources::inst().action.IsActive())
+     //  shortest_len = 0;
+-
++    
++#ifdef ANDROID
++    const int devWidth = SDL_ListModes(NULL, 0)[0]->w;
++    const int devHeight = SDL_ListModes(NULL, 0)[0]->h;
++    glScissor(0, 0, devWidth, devHeight);
++#else
+     glScissor(x, VideoDriverWrapper::inst().GetScreenHeight() - y - height, width, height);
+-
++#endif
+     gwv->GetTerrainRenderer()->Draw(this, water);
+ 
+     glTranslatef((GLfloat) this->x, (GLfloat) this->y, 0.0f);
+@@ -472,9 +481,11 @@ void GameWorldView::Draw(const unsigned char player, unsigned* water, const bool
+         (*it)->Draw(*this, xoffset, yoffset);
+ 
+     glTranslatef((GLfloat) - this->x, (GLfloat) - this->y, 0.0f);
+-
++#ifdef ANDROID
++    glScissor(0, 0, devWidth, devHeight);
++#else
+     glScissor(0, 0, VideoDriverWrapper::inst().GetScreenWidth(), VideoDriverWrapper::inst().GetScreenWidth());
+-
++#endif
+     SoundManager::inst().PlayBirdSounds(noTree::QueryDrawCounter());
+ }
+ 
+diff --git a/src/Settings.cpp b/src/Settings.cpp
+index 541cce1..06453ec
+--- a/src/Settings.cpp
++++ b/src/Settings.cpp
+@@ -107,7 +107,12 @@ bool Settings::LoadDefaults()
+     DWORD size = 256;
+     GetUserNameA(tmp_name, &size);
+ #else
+-    strncpy(tmp_name, getenv("USER"), 256);
++// FIXME Android crash
++#ifdef ANDROID
++	strncpy(tmp_name, "USER", 256);
++#else
++        strncpy(tmp_name, getenv("USER"), 256);
++#endif
+ #endif // !_WIN32
+ 
+     lobby.name = tmp_name;
+@@ -250,7 +255,12 @@ bool Settings::Load(void)
+         DWORD size = 256;
+         GetUserNameA(tmp_name, &size);
+ #else
++// FIXME Android crash
++#ifdef ANDROID
++	strncpy(tmp_name, "USER", 256);
++#else
+         strncpy(tmp_name, getenv("USER"), 256);
++#endif
+ #endif // !_WIN32
+ 
+         this->lobby.name = tmp_name;
+
+diff --git a/src/VideoDriverWrapper.cpp b/src/VideoDriverWrapper.cpp
+index 6db8014..fef6b08
+--- a/src/VideoDriverWrapper.cpp
++++ b/src/VideoDriverWrapper.cpp
+@@ -30,6 +30,10 @@
+ #include "WindowManager.h"
+ #include "files.h"
+ 
++#ifdef ANDROID
++#include <SDL.h>
++#endif
++
+ ///////////////////////////////////////////////////////////////////////////////
+ // Makros / Defines
+ #if defined _WIN32 && defined _DEBUG && defined _MSC_VER
+@@ -387,10 +391,17 @@ void VideoDriverWrapper::RenewViewport(bool onlyRenew)
+ {
+     const unsigned short width  = videodriver->GetScreenWidth();
+     const unsigned short height = videodriver->GetScreenHeight();
+-
++    
+     // Viewport mit widthxheight setzen
++#ifdef ANDROID
++    const int w = SDL_ListModes(NULL, 0)[0]->w;
++    const int h = SDL_ListModes(NULL, 0)[0]->h;
++    glViewport(0, 0, w, h);
++    glScissor(0, 0, w, h);
++#else
+     glViewport(0, 0, width, height);
+     glScissor(0, 0, width, height);
++#endif
+ 
+     // Orthogonale Matrix erstellen
+     glMatrixMode(GL_PROJECTION);
+
+diff --git a/src/main.cpp b/src/main.cpp
+index b86b68a..e1c6661
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -43,6 +43,10 @@
+ #include "iwPleaseWait.h"
+ #endif
+ 
++#ifdef ANDROID
++#include <SDL/SDL.h>
++#endif
++
+ #ifdef __APPLE__
+ #   include <SDL_main.h>
+ #endif // __APPLE__
