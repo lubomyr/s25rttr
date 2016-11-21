@@ -1,0 +1,54 @@
+--- a/src/read_int.cpp
++++ b/src/read_int.cpp
+@@ -22,6 +22,9 @@
+ #include "main.h"
+ #include "libendian.h"
+ 
++#ifdef ANDROID
++#include <sys/endian.h>
++#endif
+ ///////////////////////////////////////////////////////////////////////////////
+ /**
+  *  liest einen Little-Endian kodierten Integer aus einer Datei.
+diff --git a/src/read_short.cpp b/src/read_short.cpp
+index a71501a..4f05fa6
+--- a/src/read_short.cpp
++++ b/src/read_short.cpp
+@@ -22,6 +22,9 @@
+ #include "main.h"
+ #include "libendian.h"
+ 
++#ifdef ANDROID
++#include <sys/endian.h>
++#endif
+ ///////////////////////////////////////////////////////////////////////////////
+ /**
+  *  liest einen Little-Endian kodierten Short aus einer Datei.
+diff --git a/src/write_int.cpp b/src/write_int.cpp
+index 5397db4..fc25658
+--- a/src/write_int.cpp
++++ b/src/write_int.cpp
+@@ -22,6 +22,9 @@
+ #include "main.h"
+ #include "libendian.h"
+ 
++#ifdef ANDROID
++#include <sys/endian.h>
++#endif
+ ///////////////////////////////////////////////////////////////////////////////
+ /**
+  *  schreibt einen Little-Endian kodierten Integer in eine Datei.
+diff --git a/src/write_short.cpp b/src/write_short.cpp
+index 3fc8d45..db28203
+--- a/src/write_short.cpp
++++ b/src/write_short.cpp
+@@ -22,6 +22,9 @@
+ #include "main.h"
+ #include "libendian.h"
+ 
++#ifdef ANDROID
++#include <sys/endian.h>
++#endif
+ ///////////////////////////////////////////////////////////////////////////////
+ /**
+  *  schreibt einen Little-Endian kodierten Short in eine Datei.

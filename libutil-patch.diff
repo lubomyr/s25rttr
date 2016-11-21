@@ -1,0 +1,45 @@
+diff --git a/src/Socket.h b/src/Socket.h
+index 2a93eb7..40b3c39
+--- a/src/Socket.h
++++ b/src/Socket.h
+@@ -138,9 +138,14 @@ class Socket
+ 
+             ~HostAddr()
+             {
++//FIXME ANDROID crashed on freeaddrinfo(addr);
++#ifndef ANDROID
+                 if(lookup)
+                     freeaddrinfo(addr);
+                 else
++#else
++                if(!lookup)
++#endif
+                 {
+                     free(addr->ai_addr);
+                     delete addr;
+@@ -151,7 +156,10 @@ class Socket
+             // set
+             void UpdateAddr()
+             {
++//FIXME ANDROID crashed on freeaddrinfo(addr);
++#ifndef ANDROID
+                 freeaddrinfo(addr);
++#endif
+ 
+                 // do not use addr resolution for localhost
+                 lookup = (host != "localhost");
+diff --git a/src/SocketSet.h b/src/SocketSet.h
+index a63935b..58b11ff
+--- a/src/SocketSet.h
++++ b/src/SocketSet.h
+@@ -19,6 +19,10 @@
+ #ifndef SOCKETSET_H_INCLUDED
+ #define SOCKETSET_H_INCLUDED
+ 
++#ifdef ANDROID
++#include <sys/select.h>
++#endif
++
+ #pragma once
+ 
+ class Socket;
